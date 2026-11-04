@@ -1,0 +1,10 @@
+{
+  "code": 200,
+  "status": "SUCCESS",
+  "data": {
+    "odoMeter": 18234.6,
+    "dte": "410 km",
+    "vSpd": 0,
+    "timeStamp": "2026-11-04T10:15:00"
+  }
+}

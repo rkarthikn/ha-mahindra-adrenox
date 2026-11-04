@@ -1,0 +1,5 @@
+# Last test harness that runs on Python 3.12; HA 2025.1.4.
+pytest-homeassistant-custom-component==0.13.205
+aioresponses
+pycares<4.9
+ruff

@@ -1,0 +1,14 @@
+{
+  "statusCode": 200,
+  "data": {
+    "vehicleList": [
+      {
+        "vin": "ma1test0000000001",
+        "vehicleName": "Test XUV",
+        "modelName": "XUV700 AX7",
+        "registrationNumber": "KA01AB1234"
+      },
+      {"modelName": "entry without a VIN is skipped"}
+    ]
+  }
+}

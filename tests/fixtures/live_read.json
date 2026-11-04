@@ -1,0 +1,11 @@
+{
+  "vin": "MA1TEST0000000001",
+  "ign": "1",
+  "odoMeter": 18240,
+  "vehRange": 405,
+  "doorLock": "0",
+  "stsDoor": "OPEN",
+  "sunRoof": "CLOSED",
+  "lampStatus": {"hazardLmp": "1", "highBeam": "0", "lowBeam": "1", "stsParkLmp": "0"},
+  "timeStamp": "2026-11-04T10:20:00"
+}

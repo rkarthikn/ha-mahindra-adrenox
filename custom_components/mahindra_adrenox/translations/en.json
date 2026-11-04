@@ -1,0 +1,95 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sign in to AdrenoX",
+        "description": "Unofficial integration, not made or supported by Mahindra. Sign in with the same registered mobile number and password you use in the AdrenoX Connect app.",
+        "data": {
+          "mobile": "Mobile number",
+          "password": "Password"
+        },
+        "data_description": {
+          "mobile": "10-digit Indian mobile number, with or without +91.",
+          "password": "Your AdrenoX Connect account password."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Sign in to AdrenoX again",
+        "description": "Your AdrenoX session for {mobile} has ended. Polling has stopped until you sign in again.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_mobile": "That doesn't look like a 10-digit Indian mobile number.",
+      "invalid_auth": "AdrenoX rejected the mobile number or password.",
+      "rate_limited": "AdrenoX asked us to slow down. Wait a few minutes before trying again.",
+      "cannot_connect": "Couldn't reach AdrenoX. Check the logs for details."
+    },
+    "abort": {
+      "already_configured": "This AdrenoX account is already set up.",
+      "reauth_successful": "Signed in again.",
+      "no_vehicles": "This AdrenoX account has no vehicles.",
+      "endpoints_not_configured": "This version doesn't know the AdrenoX API addresses yet, so it can't sign in. See the README's \"Status\" section."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "AdrenoX options",
+        "data": {
+          "scan_minutes": "Poll interval",
+          "remote_commands": "Enable remote commands"
+        },
+        "data_description": {
+          "scan_minutes": "How often to ask AdrenoX for the car's status. After a failure the interval doubles, up to 2 hours.",
+          "remote_commands": "Adds lock/unlock and climate controls where this version supports them. These act on the real car: an automation mistake could unlock it or run the engine. Use at your own risk."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "fuel_level": { "name": "Fuel level" },
+      "range": { "name": "Fuel range" },
+      "odometer": { "name": "Odometer" },
+      "service_due_distance": { "name": "Service due in" },
+      "battery_voltage": { "name": "12V battery" },
+      "tyre_pressure_front_left": { "name": "Tyre pressure front left" },
+      "tyre_pressure_front_right": { "name": "Tyre pressure front right" },
+      "tyre_pressure_rear_left": { "name": "Tyre pressure rear left" },
+      "tyre_pressure_rear_right": { "name": "Tyre pressure rear right" },
+      "cabin_temperature": { "name": "Cabin temperature" },
+      "outside_temperature": { "name": "Outside temperature" },
+      "last_updated": { "name": "Last reported" }
+    },
+    "binary_sensor": {
+      "door_front_left": { "name": "Front left door" },
+      "door_front_right": { "name": "Front right door" },
+      "door_rear_left": { "name": "Rear left door" },
+      "door_rear_right": { "name": "Rear right door" },
+      "door_open": { "name": "Door open" },
+      "tailgate": { "name": "Tailgate" },
+      "bonnet": { "name": "Bonnet" },
+      "window_front_left": { "name": "Front left window" },
+      "window_front_right": { "name": "Front right window" },
+      "window_rear_left": { "name": "Rear left window" },
+      "window_rear_right": { "name": "Rear right window" },
+      "sunroof": { "name": "Sunroof" },
+      "unlocked": { "name": "Doors" },
+      "ignition": { "name": "Ignition" },
+      "climate": { "name": "Climate" },
+      "headlights": { "name": "Headlamp" },
+      "hazard": { "name": "Hazard lamps" },
+      "parklamp": { "name": "Park lamp" }
+    },
+    "lock": {
+      "door_lock": { "name": "Doors" }
+    },
+    "button": {
+      "climate_start": { "name": "Start climate" },
+      "climate_stop": { "name": "Stop climate" }
+    }
+  }
+}

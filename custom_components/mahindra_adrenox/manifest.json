@@ -1,0 +1,14 @@
+{
+  "domain": "mahindra_adrenox",
+  "name": "Mahindra AdrenoX (unofficial)",
+  "codeowners": [
+    "@rkarthikn"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/rkarthikn/ha-mahindra-adrenox",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/rkarthikn/ha-mahindra-adrenox/issues",
+  "requirements": [],
+  "version": "0.2.0"
+}
