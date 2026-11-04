@@ -65,10 +65,14 @@ COMMANDS: Final[dict[str, Call | None]] = {
 # How the access token is sent; "{token}" is replaced. Raw JWT, no prefix.
 AUTH_HEADER: Final[tuple[str, str]] = ("Authorization", "{token}")
 
-# Headers the app sends on every request.
+# Headers the app sends on every REST request. The app's Retrofit interface
+# annotates each call with Content-Type: application/json and Source: MMCApp;
+# the client's own User-Agent is OkHttp's default. (The SSE live channel is the
+# only place the app sends User-Agent: Android.)
 EXTRA_HEADERS: Final[dict[str, str]] = {
+    "Content-Type": "application/json",
     "Source": "MMCApp",
-    "User-Agent": "Android",
+    "User-Agent": "okhttp/4.12.0",
 }
 
 

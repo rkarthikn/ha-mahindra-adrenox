@@ -123,7 +123,10 @@ class AdrenoxConfigFlow(ConfigFlow, domain=DOMAIN):
             vehicles = await api.vehicles()
         except AdrenoxRateLimited:
             return {"base": "rate_limited"}
-        except AdrenoxAuthError:
+        except AdrenoxAuthError as err:
+            # Logged at WARNING so the exact AdrenoX reason is visible without
+            # enabling debug (e.g. wrong password vs. gateway rejection).
+            _LOGGER.warning("AdrenoX rejected sign-in: %s", err)
             return {"base": "invalid_auth"}
         except AdrenoxError as err:
             _LOGGER.debug("AdrenoX sign-in failed: %s", err)

@@ -123,13 +123,29 @@ class AdrenoxApi:
             ep.HDR_APP_UNIQUE_ID: app_unique_id,
         }
         resp = await self._send(method, self._url(path), None, extra_headers=headers)
-        self._raise_for_status(resp)
-        try:
+        jwt = resp.headers.get(ep.RESP_HDR_JWT) if resp.headers is not None else None
+
+        # Success is HTTP 200 carrying the jwttoken response header.
+        if resp.status == 200 and jwt:
             tokens = parse_tokens_from_headers(resp.headers, ep.RESP_HDR_JWT, ep.RESP_HDR_REFRESH)
-        except ParseError as err:
-            raise AdrenoxAuthError(str(err)) from err
-        await self._store(tokens)
-        return tokens
+            await self._store(tokens)
+            return tokens
+
+        # Anything else is a failure. The app signals auth failures either as a
+        # plain HTTP 401/403 (gateway) or as HTTP 200 with a JSON error body
+        # like {"Code": "401", "message": "Authentication Failed: AE10131"}.
+        detail = _auth_detail(resp.body)
+        _LOGGER.debug(
+            "AdrenoX login failed: HTTP %s, jwttoken header present=%s, body=%s",
+            resp.status,
+            bool(jwt),
+            _safe_body(resp.body),
+        )
+        if resp.status == 429:
+            raise AdrenoxRateLimited(_retry_after(resp.retry_after))
+        if resp.status >= 500:
+            raise AdrenoxError(f"AdrenoX server error (HTTP {resp.status})")
+        raise AdrenoxAuthError(detail or f"login rejected (HTTP {resp.status})")
 
     # -- data -------------------------------------------------------------------
 
@@ -295,3 +311,38 @@ def _retry_after(value: str | None) -> float | None:
         return float(value) if value is not None else None
     except ValueError:
         return None
+
+
+# AdrenoX auth-failure messages seen in the app (ApiClient.logInApi).
+_AUTH_MESSAGES = {
+    "authentication failed: ae10131": "Mobile number or password is incorrect",
+    "authentication failed: ae10132": "Mobile number or password is incorrect",
+    "authentication failed: ae1013": "Account locked after too many attempts",
+    "authentication failed: ae1014": "Account is deactivated",
+    "authentication failed: ae1054": "Vehicle has been de-linked from this account",
+}
+
+
+def _auth_detail(body: Any) -> str:
+    """Human-readable reason from a login error body, if any."""
+    if not isinstance(body, dict):
+        return ""
+    msg = body.get("message") or body.get("Message")
+    code = body.get("Code") or body.get("code")
+    if isinstance(msg, str):
+        known = _AUTH_MESSAGES.get(msg.strip().lower())
+        if known:
+            return known
+        if "multiple" in msg.lower() or "another device" in msg.lower():
+            return "Already signed in on another device"
+        return msg
+    if code is not None:
+        return f"Login failed (code {code})"
+    return ""
+
+
+def _safe_body(body: Any) -> str:
+    """A short, non-secret preview of a response body for debug logs."""
+    if isinstance(body, dict):
+        return str({k: body[k] for k in list(body)[:8] if "token" not in k.lower()})
+    return str(body)[:200]
