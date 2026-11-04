@@ -14,6 +14,7 @@ CONF_TOKENS: Final = "tokens"
 CONF_APP_UNIQUE_ID: Final = "app_unique_id"
 CONF_SCAN_MINUTES: Final = "scan_minutes"
 CONF_REMOTE_COMMANDS: Final = "remote_commands"
+CONF_ENABLE_LIVE: Final = "enable_live"
 
 # The car's modem reports every few minutes at best, and each poll may wake
 # Mahindra's backend; there is nothing to gain from polling faster.

@@ -39,6 +39,7 @@ from .api import (
 )
 from .const import (
     CONF_APP_UNIQUE_ID,
+    CONF_ENABLE_LIVE,
     CONF_MOBILE,
     CONF_PASSWORD,
     CONF_REMOTE_COMMANDS,
@@ -239,6 +240,7 @@ class AdrenoxOptionsFlow(OptionsFlow):
                         mode=NumberSelectorMode.BOX,
                     )
                 ),
+                vol.Required(CONF_ENABLE_LIVE, default=False): BooleanSelector(),
                 vol.Required(CONF_REMOTE_COMMANDS, default=False): BooleanSelector(),
             }
         )

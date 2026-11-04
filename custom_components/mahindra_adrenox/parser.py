@@ -53,6 +53,7 @@ class Vehicle:
     name: str | None = None
     model: str | None = None
     registration: str | None = None
+    encrypted_id: str | None = None
     raw: dict[str, Any] = field(default_factory=dict)
 
 
@@ -91,6 +92,8 @@ VEHICLE_PATHS: dict[str, tuple[str, ...]] = {
     "name": ("nickName", "nickname", "vehicleName", "name"),
     "model": ("model", "modelName", "vehicleModel", "variant"),
     "registration": ("registrationNumber", "regNo", "registrationNo", "vehicleNumber"),
+    # Needed to switch the session to this vehicle before reading its status.
+    "encrypted_id": ("encryptedVehicleId", "encryptedVin", "encryptedVehicleID"),
 }
 
 # Numeric readings.
@@ -405,6 +408,7 @@ def parse_vehicles(body: Any) -> list[Vehicle]:
                 name=_str(values["name"]),
                 model=_str(values["model"]),
                 registration=_str(values["registration"]),
+                encrypted_id=_str(values.get("encrypted_id")),
                 raw=item,
             )
         )
@@ -449,3 +453,75 @@ def _str(value: Any) -> str | None:
     if value is None or value == "":
         return None
     return str(value).strip()
+
+
+# -- live (SSE) events ----------------------------------------------------------
+#
+# The live event envelope nests values (canData, data.current, lampStatus...),
+# so we flatten to leaf keys and map the ones we recognise. Numeric fields map
+# to a float; boolean fields to on/off; inverted ones (doorLock true == locked)
+# are flipped so "unlocked" follows HA's lock convention.
+
+# leaf key -> (our values key, kind) ; kind: "num" | "bool" | "bool_inv"
+LIVE_FIELD_MAP: dict[str, tuple[str, str]] = {
+    "ign": ("ignition", "bool"),
+    "odoMeter": ("odometer", "num"),
+    "vehRange": ("range", "num"),
+    "dte": ("range", "num"),
+    "vSpd": ("speed", "num"),
+    "speed": ("speed", "num"),
+    "stsDoor": ("door_open", "bool"),
+    "stsDoorLatch": ("door_open", "bool"),
+    "doorLock": ("unlocked", "bool_inv"),
+    "sunRoof": ("sunroof", "bool"),
+    "hazardLmp": ("hazard", "bool"),
+    "stsParkLmp": ("parklamp", "bool"),
+    "stsPrkLmp": ("parklamp", "bool"),
+    "highBeam": ("headlights", "bool"),
+    "lowBeam": ("headlights", "bool"),
+    "headLmpReq": ("headlights", "bool"),
+    "hvBattSOC": ("fuel_level", "num"),
+}
+
+
+def _flatten(obj: Any, out: dict[str, Any]) -> None:
+    """Collect leaf key -> value from a nested dict (last value wins)."""
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            if isinstance(value, dict):
+                _flatten(value, out)
+            elif not isinstance(value, list):
+                out[key] = value
+
+
+def parse_live_values(event: Any) -> dict[str, Any]:
+    """Normalise one live SSE event into {values-key: value} we can merge."""
+    flat: dict[str, Any] = {}
+    _flatten(event, flat)
+    out: dict[str, Any] = {}
+    for leaf, (key, kind) in LIVE_FIELD_MAP.items():
+        if leaf not in flat:
+            continue
+        raw = flat[leaf]
+        if kind == "num":
+            value = to_float(raw)
+        else:
+            value = to_bool(raw)
+            if value is not None and kind == "bool_inv":
+                value = not value
+        if value is None:
+            continue
+        # For "headlights" (any beam on), OR the signals together.
+        if key == "headlights" and out.get(key) is True:
+            continue
+        out[key] = value
+    return out
+
+
+def live_timestamp(event: Any) -> datetime | None:
+    flat: dict[str, Any] = {}
+    _flatten(event, flat)
+    for leaf in ("timeStamp", "timestamp"):
+        if leaf in flat:
+            return to_datetime(flat[leaf])
+    return None

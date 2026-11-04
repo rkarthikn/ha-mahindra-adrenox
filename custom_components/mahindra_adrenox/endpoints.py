@@ -27,6 +27,8 @@ API_BASE: Final[str | None] = "https://interface.mahindramobilitysolution.com/V1
 
 # Live/location host (base_url_location_services) — used by the SSE channel.
 SERVICE_BASE: Final[str | None] = "https://service.mahindramobilitysolution.com"
+# SSE live channel path on SERVICE_BASE; the VIN is appended.
+SSE_REGISTER_PATH: Final[str] = "/location-services/webapi/sse/register/"
 
 # Each call is (HTTP method, path). Paths may contain "{vin}".
 Call = tuple[str, str]

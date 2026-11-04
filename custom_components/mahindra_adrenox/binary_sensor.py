@@ -10,7 +10,7 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .coordinator import AdrenoxConfigEntry, AdrenoxCoordinator
+from .coordinator import LIVE_ONLY_KEYS, AdrenoxConfigEntry, AdrenoxCoordinator
 from .entity import AdrenoxEntity
 
 PARALLEL_UPDATES = 0
@@ -57,11 +57,15 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
+    # Live-only signals (ignition, lamps, doors, roof) are null until the SSE
+    # channel delivers them; create those entities up front when live is on so
+    # they appear (unavailable until data arrives).
+    live_keys = set(LIVE_ONLY_KEYS) if coordinator.live_enabled else set()
     async_add_entities(
         AdrenoxBinarySensor(coordinator, vin, d)
         for vin, status in coordinator.data.status.items()
         for d in BINARY_SENSORS
-        if status.get(d.key) is not None
+        if status.get(d.key) is not None or d.key in live_keys
     )
 
 

@@ -108,10 +108,18 @@ add the real JSON key to the candidate lists in
 [`parser.py`](custom_components/mahindra_adrenox/parser.py) — the entities don't
 need to change. See [docs/capture-guide.md](docs/capture-guide.md).
 
+### Live channel (ignition, lamps, doors, sunroof)
+
+These are **not** in the status poll. Turn on **Enable live channel** in the
+integration's options to open the app's SSE stream and get them. It's
+experimental (field names from static analysis) and richest while the car is
+awake; raw events are logged at debug so mappings can be confirmed.
+
 ## Roadmap
 
-- [ ] Confirm `vehicleStatus` field names against a real account.
-- [ ] Wire the live SSE channel for ignition, lamps, doors and sunroof.
+- [x] Confirm `vehicleStatus` auth: the session must switch to the vehicle
+      (`auth/switch/vehicle/{encryptedVehicleId}`) for a vehicle-scoped token.
+- [x] Wire the live SSE channel for ignition, lamps, doors and sunroof (opt-in).
 - [ ] Add a `device_tracker` from the live GPS feed (`gnssInfo`).
 - [ ] Confirm and enable remote commands (lock/unlock, climate) from a capture.
 

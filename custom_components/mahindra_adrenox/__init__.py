@@ -35,6 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AdrenoxConfigEntry) -> b
     api = AdrenoxApi(async_get_clientsession(hass), Tokens.from_dict(stored), on_tokens=save_tokens)
     coordinator = AdrenoxCoordinator(hass, entry, api)
     await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_start_live()
     entry.runtime_data = coordinator
 
     # Reload when options change, but not when a token refresh rewrites data.
@@ -50,4 +51,5 @@ async def async_setup_entry(hass: HomeAssistant, entry: AdrenoxConfigEntry) -> b
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: AdrenoxConfigEntry) -> bool:
+    await entry.runtime_data.async_stop_live()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)

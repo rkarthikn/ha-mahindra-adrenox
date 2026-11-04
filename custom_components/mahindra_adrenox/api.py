@@ -121,6 +121,10 @@ class AdrenoxApi:
         self._lock = asyncio.Lock()
         self._last_request = 0.0
 
+    @property
+    def session(self) -> aiohttp.ClientSession:
+        return self._session
+
     # -- login ------------------------------------------------------------------
 
     async def login(self, mobile: str, password: str, app_unique_id: str) -> Tokens:
@@ -216,6 +220,32 @@ class AdrenoxApi:
     async def vehicles(self) -> list[Vehicle]:
         resp = await self._authorized(ep.VEHICLES)
         return parse_vehicles(resp.body)
+
+    async def switch_vehicle(self, encrypted_id: str) -> None:
+        """Scope the session to one vehicle; a new JWT comes back in headers.
+
+        vehicleStatus (and other per-vehicle calls) return UNAUTHORIZED with the
+        account token until the session has been switched to that vehicle.
+        """
+        if ep.API_BASE is None:
+            raise AdrenoxNotConfigured("AdrenoX endpoints are not configured yet")
+        url = f"{ep.API_BASE}/auth/switch/vehicle/{encrypted_id}"
+        async with self._lock:
+            await self._ensure_token()
+            resp = await self._send("GET", url, None, token=self._token())
+            if resp.status in (401, 403) and self._can_refresh():
+                await self._refresh()
+                resp = await self._send("GET", url, None, token=self._token())
+            self._raise_for_status(resp)
+            jwt = resp.headers.get(ep.RESP_HDR_JWT) if resp.headers else None
+            if jwt:
+                tokens = parse_tokens_from_headers(
+                    resp.headers,
+                    ep.RESP_HDR_JWT,
+                    ep.RESP_HDR_REFRESH,
+                    previous_refresh=self.refresh_token,
+                )
+                await self._store(tokens)
 
     async def status(self, vin: str) -> VehicleStatus:
         resp = await self._authorized(ep.STATUS, params={"vin": vin})

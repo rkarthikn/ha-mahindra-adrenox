@@ -48,10 +48,12 @@
         "title": "AdrenoX options",
         "data": {
           "scan_minutes": "Poll interval",
+          "enable_live": "Enable live channel (ignition, lamps, doors, roof)",
           "remote_commands": "Enable remote commands"
         },
         "data_description": {
           "scan_minutes": "How often to ask AdrenoX for the car's status. After a failure the interval doubles, up to 2 hours.",
+          "enable_live": "Opens a live stream for ignition, lamps, doors and sunroof (not in the regular poll). Experimental; richest while the car is awake. May be less app-like than periodic polling.",
           "remote_commands": "Adds lock/unlock and climate controls where this version supports them. These act on the real car: an automation mistake could unlock it or run the engine. Use at your own risk."
         }
       }

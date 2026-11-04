@@ -15,12 +15,25 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import AdrenoxApi, AdrenoxAuthError, AdrenoxError, AdrenoxRateLimited
 from .const import (
     COMMAND_REFRESH_DELAY,
+    CONF_ENABLE_LIVE,
     CONF_SCAN_MINUTES,
     DEFAULT_SCAN_MINUTES,
     DOMAIN,
     MAX_BACKOFF,
 )
+from .live import AdrenoxLiveChannel
 from .parser import Vehicle, VehicleStatus
+
+# Keys that only ever arrive on the live SSE channel.
+LIVE_ONLY_KEYS = (
+    "ignition",
+    "door_open",
+    "unlocked",
+    "hazard",
+    "headlights",
+    "parklamp",
+    "sunroof",
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,6 +65,37 @@ class AdrenoxCoordinator(DataUpdateCoordinator[AdrenoxData]):
         self.api = api
         self._failures = 0
         self._pending_refresh: CALLBACK_TYPE | None = None
+        self.live_enabled = bool(entry.options.get(CONF_ENABLE_LIVE))
+        self._live: list[AdrenoxLiveChannel] = []
+
+    async def async_start_live(self) -> None:
+        """Open the SSE channel per vehicle, if enabled in options."""
+        if not self.live_enabled or self._live or not self.data:
+            return
+        session = self.api.session  # reuse the HA client session
+        for vin in self.data.vehicles:
+            channel = AdrenoxLiveChannel(
+                session, self.api, vin, lambda values, ts, v=vin: self._merge_live(v, values, ts)
+            )
+            channel.start()
+            self._live.append(channel)
+
+    async def async_stop_live(self) -> None:
+        for channel in self._live:
+            await channel.stop()
+        self._live = []
+
+    def _merge_live(self, vin: str, values: dict, updated) -> None:
+        """Merge a live event into the vehicle's status and notify entities."""
+        if not self.data:
+            return
+        status = self.data.status.get(vin)
+        if status is None:
+            return
+        status.values.update(values)
+        if updated is not None:
+            status.updated_at = updated
+        self.async_set_updated_data(self.data)
 
     async def _async_update_data(self) -> AdrenoxData:
         try:
@@ -86,8 +130,22 @@ class AdrenoxCoordinator(DataUpdateCoordinator[AdrenoxData]):
             data.vehicles = self.data.vehicles
         else:
             data.vehicles = {v.vin: v for v in await self.api.vehicles()}
-        for vin in data.vehicles:
-            data.status[vin] = await self.api.status(vin)
+        for vin, vehicle in data.vehicles.items():
+            # vehicleStatus is UNAUTHORIZED until the session is switched to
+            # this vehicle (which returns a vehicle-scoped token).
+            if vehicle.encrypted_id:
+                await self.api.switch_vehicle(vehicle.encrypted_id)
+            status = await self.api.status(vin)
+            # A poll only returns odo/fuel; don't let it wipe live-only values
+            # (ignition, lamps, doors, roof) captured from the SSE channel.
+            if self.live_enabled:
+                prior = self.data.status.get(vin) if self.data else None
+                for key in LIVE_ONLY_KEYS:
+                    if prior is not None and prior.values.get(key) is not None:
+                        status.values[key] = prior.values[key]
+                    else:
+                        status.values.setdefault(key, None)
+            data.status[vin] = status
         return data
 
     def refresh_after_command(self) -> None:
@@ -105,4 +163,5 @@ class AdrenoxCoordinator(DataUpdateCoordinator[AdrenoxData]):
         if self._pending_refresh is not None:
             self._pending_refresh()
             self._pending_refresh = None
+        await self.async_stop_live()
         await super().async_shutdown()

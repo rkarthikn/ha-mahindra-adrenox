@@ -13,6 +13,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from custom_components.mahindra_adrenox import endpoints as ep
 from custom_components.mahindra_adrenox.config_flow import _account_id
 from custom_components.mahindra_adrenox.const import (
+    CONF_ENABLE_LIVE,
     CONF_MOBILE,
     CONF_PASSWORD,
     CONF_REMOTE_COMMANDS,
@@ -167,7 +168,12 @@ async def test_options(hass: HomeAssistant) -> None:
     entry.add_to_hass(hass)
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {CONF_SCAN_MINUTES: 30.0, CONF_REMOTE_COMMANDS: True}
+        result["flow_id"],
+        {CONF_SCAN_MINUTES: 30.0, CONF_ENABLE_LIVE: False, CONF_REMOTE_COMMANDS: True},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONF_SCAN_MINUTES: 30, CONF_REMOTE_COMMANDS: True}
+    assert entry.options == {
+        CONF_SCAN_MINUTES: 30,
+        CONF_ENABLE_LIVE: False,
+        CONF_REMOTE_COMMANDS: True,
+    }
