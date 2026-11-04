@@ -33,8 +33,19 @@ against a real account (see [capture-guide.md](capture-guide.md)).
   renews both (`TokenVerifier.TokenAuthenticator`, fired on HTTP 401).
 - Every authorized call sends the **raw JWT** in `Authorization` (no `Bearer `) —
   369 endpoints take `@Header("Authorization")`.
-- **There is no OTP in normal sign-in.** OTP is only used for signup, forgot
-  password and new-device verification.
+- **No OTP in normal sign-in** once a device is registered. But a **new/unknown
+  `AppUniqueId`** gets rejected with `{"Code":"AE1500","message":"App and User
+  Mapping Failed"}` plus a temporary token in the `x-amzn-remapped-authorization`
+  response header (`Constants.APP_UNIQUE_ID_VALIDATION_ERROR_CODE = "AE1500"`,
+  `ApiClient.logInApi`, `Util.saveTempJwtTokenInPref`). The app then maps the
+  device with a one-time OTP:
+  - `GET requestaccess/generateOtpAppIdMapping` with `Authorization: <temp token>`
+    → OTP texted to the registered mobile (`generateOTPForAppIdMapping`).
+  - `POST auth/validate/otp` with headers `Authorization: <temp token>`,
+    `OTP: <code>`, `AppUniqueId: <new id>` → device mapped (`validateAppIDMapping`).
+  - After that, normal `auth/login` with the same `AppUniqueId` returns real
+    tokens. Mapping a new device can sign the existing phone out
+    (`new_device_login` dialog → "verify and login").
 
 ## Vehicle list
 

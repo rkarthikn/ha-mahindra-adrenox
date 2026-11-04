@@ -17,6 +17,7 @@ from custom_components.mahindra_adrenox.api import (
     AdrenoxApi,
     AdrenoxAuthError,
     AdrenoxCommandError,
+    AdrenoxDeviceMappingRequired,
     AdrenoxError,
     AdrenoxNotConfigured,
     AdrenoxRateLimited,
@@ -82,6 +83,51 @@ async def test_login_rejected_is_auth_error(session, endpoints) -> None:
         mock.get(f"{BASE}/auth/login", status=401, payload={"message": "Bad creds"})
         with pytest.raises(AdrenoxAuthError, match="Bad creds"):
             await api.login("9876543210", "wrong", APP_ID)
+
+
+async def test_new_device_requires_mapping_then_maps(session, endpoints) -> None:
+    api = AdrenoxApi(session)
+    with aioresponses() as mock:
+        # 1) Login from a new device -> AE1500 + temp token in a response header.
+        mock.get(
+            f"{BASE}/auth/login",
+            status=200,
+            headers={"x-amzn-remapped-authorization": "temp-tok"},
+            payload={"Code": "AE1500", "message": "App and User Mapping Failed"},
+        )
+        with pytest.raises(AdrenoxDeviceMappingRequired) as err:
+            await api.login("9876543210", "secret", APP_ID)
+        assert err.value.temp_token == "temp-tok"
+
+        # 2) Request the mapping OTP with the temp token.
+        mock.get(f"{BASE}/requestaccess/generateOtpAppIdMapping", payload={"statusCode": 200})
+        await api.request_mapping_otp("temp-tok")
+        gen = _requests(mock, "GET", f"{BASE}/requestaccess/generateOtpAppIdMapping")[0]
+        assert gen.kwargs["headers"]["Authorization"] == "temp-tok"
+
+        # 3) Validate the OTP -> device mapped, real tokens returned in headers.
+        mock.post(
+            f"{BASE}/auth/validate/otp",
+            status=200,
+            headers={"jwttoken": "real-jwt", "refreshToken": "real-refresh"},
+            payload={"statusCode": 200},
+        )
+        tokens = await api.validate_mapping_otp(
+            "temp-tok", "123456", APP_ID, "9876543210", "secret"
+        )
+        val = _requests(mock, "POST", f"{BASE}/auth/validate/otp")[0]
+        assert val.kwargs["headers"]["Authorization"] == "temp-tok"
+        assert val.kwargs["headers"]["OTP"] == "123456"
+        assert val.kwargs["headers"]["AppUniqueId"] == APP_ID
+    assert tokens.access_token == "real-jwt"
+
+
+async def test_validate_mapping_wrong_otp(session, endpoints) -> None:
+    api = AdrenoxApi(session)
+    with aioresponses() as mock:
+        mock.post(f"{BASE}/auth/validate/otp", status=401, payload={"message": "Invalid OTP"})
+        with pytest.raises(AdrenoxAuthError):
+            await api.validate_mapping_otp("temp", "000000", APP_ID, "9876543210", "pw")
 
 
 async def test_status_sends_raw_token(session, endpoints) -> None:

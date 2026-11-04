@@ -35,22 +35,37 @@ Call = tuple[str, str]
 LOGIN: Final[Call | None] = ("GET", "auth/login")
 TOKEN_REFRESH: Final[Call | None] = ("GET", "auth/refreshToken")
 
+# New-device mapping: a fresh AppUniqueId must be verified once with an OTP.
+#   login -> AE1500 + temp token in x-amzn-remapped-authorization
+#   GET generateOtpAppIdMapping (Authorization: temp) -> OTP sent to the mobile
+#   POST auth/validate/otp (Authorization: temp, OTP, AppUniqueId) -> device mapped
+GENERATE_APPID_OTP: Final[Call | None] = ("GET", "requestaccess/generateOtpAppIdMapping")
+VALIDATE_APPID_OTP: Final[Call | None] = ("POST", "auth/validate/otp")
+
 # Data.
 VEHICLES: Final[Call | None] = ("GET", "requestaccess/getMyVehicleInfo")
 # vehicleStatus takes the VIN as a ?vin= query parameter (handled in api.py),
 # returning { code, data: { odoMeter, dte, vSpd, timeStamp }, ... }.
 STATUS: Final[Call | None] = ("GET", "vehicleservice/vehicleStatus")
 
-# Request header names for the login/refresh calls.
+# Request header names for the login/refresh/mapping calls.
 HDR_USERNAME: Final = "X-Auth-Username"
 HDR_PASSWORD: Final = "X-Auth-Password"
 HDR_APP_LOGIN: Final = "AppLogin"
 HDR_APP_UNIQUE_ID: Final = "AppUniqueId"
 HDR_REFRESH_TOKEN: Final = "refreshToken"
+HDR_OTP: Final = "OTP"
+HDR_AUTHORIZATION: Final = "Authorization"
 
 # Response header names carrying the tokens.
 RESP_HDR_JWT: Final = "jwttoken"
 RESP_HDR_REFRESH: Final = "refreshToken"
+# On AE1500 the login response carries a temporary token used to request and
+# validate the device-mapping OTP.
+RESP_HDR_TEMP_AUTH: Final = "x-amzn-remapped-authorization"
+
+# App/User mapping failure for an unregistered AppUniqueId (Constants.AE1500).
+APPID_MAPPING_CODE: Final = "AE1500"
 
 # Remote commands. Left None on purpose: the app sends these as command-and-ack
 # over rvdservices/remote-services, and the exact bodies were not verified. A

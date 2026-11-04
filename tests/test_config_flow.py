@@ -72,6 +72,47 @@ async def test_full_flow(hass: HomeAssistant, endpoints) -> None:
     assert result["result"].unique_id == _account_id(MOBILE)
 
 
+async def test_new_device_otp_flow(hass: HomeAssistant, endpoints) -> None:
+    result = await _start(hass)
+    with aioresponses() as mock:
+        # Login from a new device -> AE1500 + temp token, then OTP is sent.
+        mock.get(
+            f"{BASE}/auth/login",
+            status=200,
+            headers={"x-amzn-remapped-authorization": "temp-tok"},
+            payload={"Code": "AE1500", "message": "App and User Mapping Failed"},
+        )
+        mock.get(f"{BASE}/requestaccess/generateOtpAppIdMapping", payload={"statusCode": 200})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_MOBILE: MOBILE, CONF_PASSWORD: "secret"}
+        )
+        assert result["step_id"] == "otp"
+        assert result["description_placeholders"] == {"mobile": "******3210"}
+
+        # Wrong code first.
+        mock.post(f"{BASE}/auth/validate/otp", status=401, payload={"message": "Invalid OTP"})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"otp": "000000"}
+        )
+        assert result["errors"] == {"base": "invalid_otp"}
+
+        # Correct code: device mapped, tokens in headers, vehicles read.
+        mock.post(
+            f"{BASE}/auth/validate/otp",
+            status=200,
+            headers={"jwttoken": "test-access-token", "refreshToken": "r"},
+            payload={"statusCode": 200},
+        )
+        mock.get(f"{BASE}/getMyVehicleInfo", payload=load("vehicles.json"))
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"otp": "123456"}
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Test XUV"
+    assert result["data"][CONF_TOKENS]["access_token"] == "test-access-token"
+
+
 @pytest.mark.parametrize(
     ("status", "error"),
     [(429, "rate_limited"), (403, "invalid_auth"), (500, "cannot_connect")],

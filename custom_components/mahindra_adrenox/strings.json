@@ -13,6 +13,13 @@
           "password": "Your AdrenoX Connect account password."
         }
       },
+      "otp": {
+        "title": "Verify this device",
+        "description": "This is a new device for your AdrenoX account, so AdrenoX sent a one-time code to {mobile}. Enter it to link Home Assistant. Note: your phone's AdrenoX app may be signed out when you do this.",
+        "data": {
+          "otp": "One-time code"
+        }
+      },
       "reauth_confirm": {
         "title": "Sign in to AdrenoX again",
         "description": "Your AdrenoX session for {mobile} has ended. Polling has stopped until you sign in again.",
@@ -24,6 +31,7 @@
     "error": {
       "invalid_mobile": "That doesn't look like a 10-digit Indian mobile number.",
       "invalid_auth": "AdrenoX rejected the mobile number or password.",
+      "invalid_otp": "That code was wrong or has expired. Check it and try again.",
       "rate_limited": "AdrenoX asked us to slow down. Wait a few minutes before trying again.",
       "cannot_connect": "Couldn't reach AdrenoX. Check the logs for details."
     },

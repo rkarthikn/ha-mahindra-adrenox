@@ -81,6 +81,11 @@ they stay hidden — this release is read-only.
 3. Search HACS for **Mahindra AdrenoX**, download it, restart Home Assistant.
 4. **Settings → Devices & services → Add integration → Mahindra AdrenoX**.
 5. Enter the mobile number and password registered in the AdrenoX app.
+6. **First time only — verify the device:** AdrenoX treats Home Assistant as a
+   new device and texts a one-time code to your number (error `AE1500`,
+   "App and User Mapping Failed"). Enter it to link HA. Your phone's AdrenoX app
+   may be signed out when you do this — that's the single-session behaviour; see
+   the warning above, and consider a secondary account.
 
 To install by hand, copy `custom_components/mahindra_adrenox` into your Home
 Assistant `config/custom_components/` folder and restart.

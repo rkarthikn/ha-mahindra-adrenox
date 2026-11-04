@@ -71,6 +71,18 @@ class AdrenoxCommandError(AdrenoxError):
     """A remote command was refused."""
 
 
+class AdrenoxDeviceMappingRequired(AdrenoxError):
+    """A new AppUniqueId must be verified with an OTP before it can sign in.
+
+    Carries the temporary token from the login response, used to request and
+    validate the mapping OTP.
+    """
+
+    def __init__(self, temp_token: str | None) -> None:
+        super().__init__("This device must be verified with an OTP")
+        self.temp_token = temp_token
+
+
 def normalize_mobile(value: str) -> str:
     """Return the 10-digit Indian mobile number, or raise ValueError."""
     digits = re.sub(r"\D", "", value)
@@ -131,6 +143,15 @@ class AdrenoxApi:
             await self._store(tokens)
             return tokens
 
+        # A new/unmapped AppUniqueId: AE1500 "App and User Mapping Failed",
+        # with a temporary token to drive the one-time OTP device verification.
+        if _is_appid_mapping_error(resp.body):
+            temp = resp.headers.get(ep.RESP_HDR_TEMP_AUTH) if resp.headers else None
+            _LOGGER.debug(
+                "AdrenoX wants device mapping (AE1500); temp token present=%s", bool(temp)
+            )
+            raise AdrenoxDeviceMappingRequired(temp)
+
         # Anything else is a failure. The app signals auth failures either as a
         # plain HTTP 401/403 (gateway) or as HTTP 200 with a JSON error body
         # like {"Code": "401", "message": "Authentication Failed: AE10131"}.
@@ -146,6 +167,49 @@ class AdrenoxApi:
         if resp.status >= 500:
             raise AdrenoxError(f"AdrenoX server error (HTTP {resp.status})")
         raise AdrenoxAuthError(detail or f"login rejected (HTTP {resp.status})")
+
+    # -- new-device OTP mapping -------------------------------------------------
+
+    async def request_mapping_otp(self, temp_token: str) -> None:
+        """Ask AdrenoX to SMS a device-mapping OTP (uses the temp token)."""
+        if ep.API_BASE is None or ep.GENERATE_APPID_OTP is None:
+            raise AdrenoxNotConfigured("AdrenoX endpoints are not configured yet")
+        method, path = ep.GENERATE_APPID_OTP
+        resp = await self._send(
+            method, self._url(path), None, extra_headers={ep.HDR_AUTHORIZATION: temp_token}
+        )
+        if resp.status in (401, 403):
+            raise AdrenoxAuthError("Device-mapping session expired; start again")
+        self._raise_for_status(resp)
+
+    async def validate_mapping_otp(
+        self, temp_token: str, otp: str, app_unique_id: str, mobile: str, password: str
+    ) -> Tokens:
+        """Validate the OTP to map this AppUniqueId, then sign in normally."""
+        if ep.API_BASE is None or ep.VALIDATE_APPID_OTP is None:
+            raise AdrenoxNotConfigured("AdrenoX endpoints are not configured yet")
+        method, path = ep.VALIDATE_APPID_OTP
+        resp = await self._send(
+            method,
+            self._url(path),
+            None,
+            extra_headers={
+                ep.HDR_AUTHORIZATION: temp_token,
+                ep.HDR_OTP: otp,
+                ep.HDR_APP_UNIQUE_ID: app_unique_id,
+            },
+        )
+        if resp.status in (401, 403) or (resp.status == 200 and _auth_detail(resp.body)):
+            raise AdrenoxAuthError(_auth_detail(resp.body) or "OTP was wrong or expired")
+        self._raise_for_status(resp)
+        # If validation already returned the real tokens, use them; otherwise the
+        # device is now mapped, so a normal login succeeds.
+        jwt = resp.headers.get(ep.RESP_HDR_JWT) if resp.headers else None
+        if resp.status == 200 and jwt:
+            tokens = parse_tokens_from_headers(resp.headers, ep.RESP_HDR_JWT, ep.RESP_HDR_REFRESH)
+            await self._store(tokens)
+            return tokens
+        return await self.login(mobile, password, app_unique_id)
 
     # -- data -------------------------------------------------------------------
 
@@ -321,6 +385,17 @@ _AUTH_MESSAGES = {
     "authentication failed: ae1014": "Account is deactivated",
     "authentication failed: ae1054": "Vehicle has been de-linked from this account",
 }
+
+
+def _is_appid_mapping_error(body: Any) -> bool:
+    """True when login returned the AE1500 app/user mapping failure."""
+    if not isinstance(body, dict):
+        return False
+    code = str(body.get("Code") or body.get("code") or "").strip().upper()
+    if code == ep.APPID_MAPPING_CODE:
+        return True
+    msg = str(body.get("message") or body.get("Message") or "").lower()
+    return "mapping failed" in msg
 
 
 def _auth_detail(body: Any) -> str:
