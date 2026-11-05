@@ -6,7 +6,8 @@
         "vin": "ma1test0000000001",
         "vehicleName": "Test XUV",
         "modelName": "XUV700 AX7",
-        "registrationNumber": "KA01AB1234"
+        "registrationNumber": "KA01AB1234",
+        "encryptedVehicleId": "AbC-dEf_123=="
       },
       {"modelName": "entry without a VIN is skipped"}
     ]

@@ -47,10 +47,14 @@ class AdrenoxLiveChannel:
         api: AdrenoxApi,
         vin: str,
         on_event: Callable[[dict[str, Any], Any], None],
+        path_id: str | None = None,
     ) -> None:
         self._session = session
         self._api = api
         self._vin = vin
+        # location-services keys off the encrypted id (as fetchStateVin does);
+        # fall back to the VIN if it is missing.
+        self._path_id = path_id or vin
         self._on_event = on_event
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
@@ -70,7 +74,7 @@ class AdrenoxLiveChannel:
 
     @property
     def _url(self) -> str:
-        return f"{ep.SERVICE_BASE}{ep.SSE_REGISTER_PATH}{self._vin}"
+        return f"{ep.SERVICE_BASE}{ep.SSE_REGISTER_PATH}{self._path_id}"
 
     async def _run(self) -> None:
         backoff = _BACKOFF_START
@@ -94,7 +98,7 @@ class AdrenoxLiveChannel:
             raise RuntimeError("no access token for live channel")
         # Arm the backend first: the stream stays idle until initLiveTracking
         # returns 200 (the app does the same before opening the stream).
-        await self._api.init_live_tracking(self._vin)
+        await self._api.init_live_tracking(self._path_id)
         headers = {
             ep.HDR_AUTHORIZATION: token,
             "Accept": "text/event-stream",

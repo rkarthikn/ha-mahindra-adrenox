@@ -30,10 +30,13 @@ logging and expect to adjust a field name or two
 | Location | `latitude`/`longitude`/`heading` → a `device_tracker` |
 | Last reported | when the car last sent data (`time`) |
 
-The poll hits `location-services/fetchStateVin/{vin}` — the same endpoint the
+The poll hits `location-services/fetchStateVin/{id}` — the same endpoint the
 app's home screen reads, on the same host and token as login (no vehicle
-switch). An earlier version used `vehicleservice/vehicleStatus`, which returns
-`UNAUTHORIZED` and is not the dashboard's source.
+switch). The `{id}` is the vehicle's **encrypted id** (`encryptedVehicleId`),
+which the server base64-decodes; the plain VIN returns
+`statusCode 500 "Last unit does not have enough valid bits"`. An earlier
+version used `vehicleservice/vehicleStatus`, which returns `UNAUTHORIZED` and is
+not the dashboard's source.
 
 **Lamps, doors and roof** (`lampStatus`, `doorLock`/`stsDoor`, `sunRoof`) are
 **not** in that snapshot. The app receives them over a live

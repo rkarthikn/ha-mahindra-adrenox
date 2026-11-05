@@ -53,8 +53,10 @@ VEHICLES: Final[Call | None] = ("GET", "requestaccess/getMyVehicleInfo")
 #                  longitude, heading, vspd, hvBattSOC, chrgSts, connected,
 #                  time, ...}, "statusCode": 200}
 # This replaces vehicleservice/vehicleStatus, which returns UNAUTHORIZED here
-# and is not the dashboard's source. Verified from the app (see
-# docs/reverse-engineering.md); the VIN is substituted into the path.
+# and is not the dashboard's source. The {vin} placeholder is filled with the
+# vehicle's *encrypted* id (encryptedVehicleId), which the server base64-decodes
+# — the plain VIN returns statusCode 500 "Last unit does not have enough valid
+# bits". Verified from the app + live response (see docs/reverse-engineering.md).
 STATUS: Final[Call | None] = ("GET", "location-services/fetchStateVin/{vin}")
 
 # Live tracking. The app POSTs this (body {"vin": vin}) to "arm" the backend

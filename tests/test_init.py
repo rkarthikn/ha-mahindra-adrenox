@@ -25,7 +25,8 @@ from .conftest import BASE, load
 
 VIN = "MA1TEST0000000001"
 VEHICLES_URL = f"{BASE}/getMyVehicleInfo"
-STATUS_URL = f"{BASE}/location-services/fetchStateVin/{VIN}"
+# The coordinator keys fetchStateVin off the vehicle's encrypted id, not the VIN.
+STATUS_URL = f"{BASE}/location-services/fetchStateVin/AbC-dEf_123=="
 
 
 def _entry(hass: HomeAssistant, **options) -> MockConfigEntry:

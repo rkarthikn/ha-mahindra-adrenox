@@ -143,6 +143,19 @@ async def test_status_sends_raw_token(session, endpoints) -> None:
     assert status.get("range") == 410.0
 
 
+async def test_status_uses_encrypted_id_in_path(session, endpoints) -> None:
+    # fetchStateVin base64-decodes the path segment, so it takes the vehicle's
+    # encrypted id, not the plain VIN.
+    api = AdrenoxApi(session, Tokens(**vars(FRESH)))
+    enc = "AbC-dEf_123=="
+    url = f"{BASE}/location-services/fetchStateVin/{enc}"
+    with aioresponses() as mock:
+        mock.get(url, payload=load("status.json"))
+        status = await api.status(VIN, path_id=enc)
+        assert _requests(mock, "GET", url)  # VIN never appears in the path
+    assert status.get("odometer") == 18234
+
+
 async def test_init_live_tracking_posts_vin(session, endpoints) -> None:
     # Arming the live stream is a POST {"vin": ...} with the account token.
     api = AdrenoxApi(session, Tokens(**vars(FRESH)))

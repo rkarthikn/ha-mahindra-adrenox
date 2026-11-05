@@ -221,13 +221,16 @@ class AdrenoxApi:
         resp = await self._authorized(ep.VEHICLES)
         return parse_vehicles(resp.body)
 
-    async def status(self, vin: str) -> VehicleStatus:
+    async def status(self, vin: str, path_id: str | None = None) -> VehicleStatus:
         """Read the dashboard snapshot (odometer, fuel range, ignition, GPS…).
 
-        The VIN goes in the path (fetchStateVin/{vin}); the account JWT alone
+        fetchStateVin keys off the vehicle's *encrypted* id (the server
+        base64-decodes the path segment), not the plain VIN — passing the VIN
+        returns ``statusCode 500 "Last unit does not have enough valid bits"``.
+        Pass ``path_id`` = the vehicle's ``encrypted_id``; the account JWT alone
         authorizes it, so no vehicle switch is needed.
         """
-        resp = await self._authorized(ep.STATUS, vin=vin)
+        resp = await self._authorized(ep.STATUS, vin=path_id or vin)
         # Log the raw snapshot once so field names / wrapper shape can be
         # confirmed against a real car (debug only; it is the owner's own data).
         _LOGGER.debug("fetchStateVin ...%s -> HTTP %s body=%s", vin[-4:], resp.status, resp.body)

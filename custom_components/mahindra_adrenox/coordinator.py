@@ -73,9 +73,13 @@ class AdrenoxCoordinator(DataUpdateCoordinator[AdrenoxData]):
         if not self.live_enabled or self._live or not self.data:
             return
         session = self.api.session  # reuse the HA client session
-        for vin in self.data.vehicles:
+        for vin, vehicle in self.data.vehicles.items():
             channel = AdrenoxLiveChannel(
-                session, self.api, vin, lambda values, ts, v=vin: self._merge_live(v, values, ts)
+                session,
+                self.api,
+                vin,
+                lambda values, ts, v=vin: self._merge_live(v, values, ts),
+                path_id=vehicle.encrypted_id,
             )
             channel.start()
             self._live.append(channel)
@@ -130,10 +134,10 @@ class AdrenoxCoordinator(DataUpdateCoordinator[AdrenoxData]):
             data.vehicles = self.data.vehicles
         else:
             data.vehicles = {v.vin: v for v in await self.api.vehicles()}
-        for vin in data.vehicles:
-            # fetchStateVin is authorized by the account token alone, so no
-            # per-vehicle switch is needed.
-            status = await self.api.status(vin)
+        for vin, vehicle in data.vehicles.items():
+            # fetchStateVin keys off the vehicle's encrypted id (base64) in the
+            # path, not the plain VIN. The account token alone authorizes it.
+            status = await self.api.status(vin, path_id=vehicle.encrypted_id)
             # A poll only returns odo/fuel; don't let it wipe live-only values
             # (ignition, lamps, doors, roof) captured from the SSE channel.
             if self.live_enabled:
