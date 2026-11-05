@@ -228,6 +228,9 @@ class AdrenoxApi:
         authorizes it, so no vehicle switch is needed.
         """
         resp = await self._authorized(ep.STATUS, vin=vin)
+        # Log the raw snapshot once so field names / wrapper shape can be
+        # confirmed against a real car (debug only; it is the owner's own data).
+        _LOGGER.debug("fetchStateVin ...%s -> HTTP %s body=%s", vin[-4:], resp.status, resp.body)
         try:
             return parse_status(resp.body)
         except ParseError as err:
