@@ -243,7 +243,7 @@ class AdrenoxApi:
                     resp.headers,
                     ep.RESP_HDR_JWT,
                     ep.RESP_HDR_REFRESH,
-                    previous_refresh=self.refresh_token,
+                    previous_refresh=self.tokens.refresh_token if self.tokens else None,
                 )
                 await self._store(tokens)
 

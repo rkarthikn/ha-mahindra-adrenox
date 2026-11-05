@@ -143,6 +143,22 @@ async def test_status_sends_raw_token(session, endpoints) -> None:
     assert status.get("range") == 410.0
 
 
+async def test_switch_vehicle_stores_scoped_token(session, endpoints) -> None:
+    # vehicleStatus is UNAUTHORIZED until the session switches to the vehicle,
+    # which returns a fresh, vehicle-scoped jwt in the response headers.
+    saved: list[Tokens] = []
+    api = AdrenoxApi(session, Tokens(**vars(FRESH)), on_tokens=saved.append)
+    switch_url = f"{BASE}/auth/switch/vehicle/ENC123"
+    with aioresponses() as mock:
+        mock.get(switch_url, headers={"jwttoken": "scoped-access"})
+        await api.switch_vehicle("ENC123")
+        req = _requests(mock, "GET", switch_url)[0]
+        assert req.kwargs["headers"]["Authorization"] == "old-access"
+    # New scoped token is kept; the refresh token is carried over, not dropped.
+    assert saved[-1].access_token == "scoped-access"
+    assert saved[-1].refresh_token == "old-refresh"
+
+
 async def test_expired_token_is_refreshed_first(session, endpoints) -> None:
     saved: list[Tokens] = []
     api = AdrenoxApi(session, Tokens(**vars(STALE)), on_tokens=saved.append)
