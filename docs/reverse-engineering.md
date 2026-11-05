@@ -80,3 +80,27 @@ against a real account (see [capture-guide.md](capture-guide.md)).
   normal TLS to the real host.
 - The app's on-SD-card request/response logging (`Util.saveTextInSdCard`) is a
   no-op stub in the release build.
+
+## Correction (v2.0.68, re-verified): the dashboard status endpoint
+
+The home-screen vehicle data does **not** come from `vehicleservice/vehicleStatus`
+(that returns `{"status":"Error","message":"UNAUTHORIZED"}` here). It comes from a
+single REST call on the same `RetrofitClient.getMahindraApi()` client (same base
+and `Authorization: <jwt>` header as login — no vehicle switch):
+
+- `GET location-services/fetchStateVin/{vin}` → `FetchState { dataModel: DataModel,
+  statusCode }` (`MahindraApi.getFetchState`, `common/models/FetchState`,
+  `common/models/DataModel`).
+- `DataModel` fields: `odoMeter` (Int), `dte` (Int, fuel range), `vehRange`,
+  `cngDte`, `fuelMode`, `ign` (boolean = ignition), `latitude`/`longitude`
+  (String), `heading`, `vspd`, `hvBattSOC`, `chrgSts`, `timeToCharge`,
+  `tripEndTime`, `connected`, `serviceMode`, `dndStatus`, `criticalAlerts`,
+  `time` (last update), `wkpSrc`.
+
+Lamps/doors/roof (`lampStatus`, `doorLock`/`stsDoor`, `sunRoof`) are not in this
+snapshot. The app POSTs `location-services/initLiveTracking` (`LiveTrackRequest {
+vin }`, must return `statusCode 200`) to arm the backend, then opens the SSE
+stream `location-services/webapi/sse/register/{vin}`
+(`LiveTrackingRepository.initLiveTracking` + `ServerSentEventOkHttpWrapper`). The
+first arg to both `getFetchState` and `initLiveTracking` is the raw JWT read from
+`MahindraPreference "JWTTOKEN"`.

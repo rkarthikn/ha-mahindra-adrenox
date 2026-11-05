@@ -1,10 +1,19 @@
 {
-  "code": 200,
-  "status": "SUCCESS",
-  "data": {
-    "odoMeter": 18234.6,
-    "dte": "410 km",
-    "vSpd": 0,
-    "timeStamp": "2026-11-04T10:15:00"
-  }
+  "dataModel": {
+    "odoMeter": 18234,
+    "dte": 410,
+    "vehRange": 410,
+    "fuelMode": 1,
+    "ign": false,
+    "latitude": "12.9716",
+    "longitude": "77.5946",
+    "heading": 90.0,
+    "vspd": 0,
+    "hvBattSOC": null,
+    "chrgSts": null,
+    "connected": true,
+    "serviceMode": 0,
+    "time": "2026-11-04T10:15:00"
+  },
+  "statusCode": 200
 }

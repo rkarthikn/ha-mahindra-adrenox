@@ -25,7 +25,7 @@ from .conftest import BASE, load
 
 VIN = "MA1TEST0000000001"
 VEHICLES_URL = f"{BASE}/getMyVehicleInfo"
-STATUS_URL = f"{BASE}/vehicleStatus?vin={VIN}"
+STATUS_URL = f"{BASE}/location-services/fetchStateVin/{VIN}"
 
 
 def _entry(hass: HomeAssistant, **options) -> MockConfigEntry:
@@ -64,17 +64,19 @@ async def test_setup_creates_reported_entities(hass: HomeAssistant, endpoints) -
         e.unique_id: e.entity_id
         for e in er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
     }
-    # Odometer and fuel range come from the passive vehicleStatus poll.
+    # Odometer, fuel range, ignition and GPS come from the fetchStateVin poll.
     assert f"{VIN}_odometer" in ids
     assert f"{VIN}_range" in ids
     assert f"{VIN}_last_updated" in ids
-    # Not reported by the passive endpoint -> no entity.
+    assert f"{VIN}_ignition" in ids
+    # Not reported by the snapshot (no HV battery here) -> no entity.
     assert f"{VIN}_fuel_level" not in ids
-    assert f"{VIN}_ignition" not in ids
+    # Lamps/doors/roof are live-only; with live off they don't appear.
+    assert f"{VIN}_sunroof" not in ids
     # Remote commands stay off by default.
     assert f"{VIN}_door_lock" not in ids
 
-    assert hass.states.get(ids[f"{VIN}_odometer"]).state == "18234.6"
+    assert hass.states.get(ids[f"{VIN}_odometer"]).state == "18234.0"
     assert hass.states.get(ids[f"{VIN}_range"]).state == "410.0"
 
     assert await hass.config_entries.async_unload(entry.entry_id)
@@ -130,5 +132,5 @@ async def test_diagnostics_are_redacted(hass: HomeAssistant, endpoints) -> None:
     for secret in ("9876543210", "access", VIN, "ma1test", "KA01AB1234", "Test XUV"):
         assert secret.lower() not in text.lower(), secret
     vehicle = diag["vehicles"][0]
-    assert vehicle["parsed"]["odometer"] == 18234.6
-    assert vehicle["status_raw"]["odoMeter"] == 18234.6
+    assert vehicle["parsed"]["odometer"] == 18234.0
+    assert vehicle["status_raw"]["odoMeter"] == 18234

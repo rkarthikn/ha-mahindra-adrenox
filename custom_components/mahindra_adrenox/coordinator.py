@@ -24,9 +24,9 @@ from .const import (
 from .live import AdrenoxLiveChannel
 from .parser import Vehicle, VehicleStatus
 
-# Keys that only ever arrive on the live SSE channel.
+# Keys that only ever arrive on the live SSE channel. Ignition is NOT here:
+# the fetchStateVin snapshot already reports it (ign) on every poll.
 LIVE_ONLY_KEYS = (
-    "ignition",
     "door_open",
     "unlocked",
     "hazard",
@@ -130,11 +130,9 @@ class AdrenoxCoordinator(DataUpdateCoordinator[AdrenoxData]):
             data.vehicles = self.data.vehicles
         else:
             data.vehicles = {v.vin: v for v in await self.api.vehicles()}
-        for vin, vehicle in data.vehicles.items():
-            # vehicleStatus is UNAUTHORIZED until the session is switched to
-            # this vehicle (which returns a vehicle-scoped token).
-            if vehicle.encrypted_id:
-                await self.api.switch_vehicle(vehicle.encrypted_id)
+        for vin in data.vehicles:
+            # fetchStateVin is authorized by the account token alone, so no
+            # per-vehicle switch is needed.
             status = await self.api.status(vin)
             # A poll only returns odo/fuel; don't let it wipe live-only values
             # (ignition, lamps, doors, roof) captured from the SSE channel.

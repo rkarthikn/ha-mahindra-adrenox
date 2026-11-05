@@ -27,7 +27,7 @@ from custom_components.mahindra_adrenox.parser import Tokens
 from .conftest import BASE, load
 
 VIN = "MA1TEST0000000001"
-STATUS_URL = f"{BASE}/vehicleStatus?vin={VIN}"
+STATUS_URL = f"{BASE}/location-services/fetchStateVin/{VIN}"
 APP_ID = "test-app-id"
 FRESH = Tokens("old-access", "old-refresh", datetime.now(UTC) + timedelta(hours=1))
 STALE = Tokens("old-access", "old-refresh", datetime.now(UTC) - timedelta(minutes=1))
@@ -139,24 +139,20 @@ async def test_status_sends_raw_token(session, endpoints) -> None:
         status = await api.status(vehicles[0].vin)
         req = _requests(mock, "GET", STATUS_URL)[0]
         assert req.kwargs["headers"]["Authorization"] == "old-access"  # raw, no Bearer
-    assert status.get("odometer") == 18234.6
+    assert status.get("odometer") == 18234
     assert status.get("range") == 410.0
 
 
-async def test_switch_vehicle_stores_scoped_token(session, endpoints) -> None:
-    # vehicleStatus is UNAUTHORIZED until the session switches to the vehicle,
-    # which returns a fresh, vehicle-scoped jwt in the response headers.
-    saved: list[Tokens] = []
-    api = AdrenoxApi(session, Tokens(**vars(FRESH)), on_tokens=saved.append)
-    switch_url = f"{BASE}/auth/switch/vehicle/ENC123"
+async def test_init_live_tracking_posts_vin(session, endpoints) -> None:
+    # Arming the live stream is a POST {"vin": ...} with the account token.
+    api = AdrenoxApi(session, Tokens(**vars(FRESH)))
+    url = f"{BASE}/location-services/initLiveTracking"
     with aioresponses() as mock:
-        mock.get(switch_url, headers={"jwttoken": "scoped-access"})
-        await api.switch_vehicle("ENC123")
-        req = _requests(mock, "GET", switch_url)[0]
+        mock.post(url, payload={"statusCode": 200})
+        await api.init_live_tracking(VIN)
+        req = _requests(mock, "POST", url)[0]
+        assert req.kwargs["json"] == {"vin": VIN}
         assert req.kwargs["headers"]["Authorization"] == "old-access"
-    # New scoped token is kept; the refresh token is carried over, not dropped.
-    assert saved[-1].access_token == "scoped-access"
-    assert saved[-1].refresh_token == "old-refresh"
 
 
 async def test_expired_token_is_refreshed_first(session, endpoints) -> None:

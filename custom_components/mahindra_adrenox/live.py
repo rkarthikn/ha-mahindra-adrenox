@@ -1,12 +1,13 @@
-"""Optional live channel (Server-Sent Events) for ignition/lamps/doors/roof.
+"""Optional live channel (Server-Sent Events) for lamps/doors/roof.
 
-The app opens an SSE stream at
+The app arms the backend with POST location-services/initLiveTracking
+({"vin": …}) and then opens an SSE stream at
     {SERVICE_BASE}/location-services/webapi/sse/register/{vin}
 with headers Authorization: <jwt>, Accept: text/event-stream, User-Agent:
 Android (long read timeout). Events are JSON (LiveVehicleTrackEventData /
-ReadModel) carrying ign, lampStatus, doorLock/stsDoor, sunRoof, odoMeter,
-vehRange, speed, gnssInfo, etc. Those signals are NOT in the cheap vehicleStatus
-poll, so this is the only way to get them.
+ReadModel) carrying lampStatus, doorLock/stsDoor, sunRoof, plus ign, odoMeter,
+vehRange, speed, gnssInfo, etc. The lamp/door/roof signals are NOT in the
+fetchStateVin snapshot poll, so this stream is the only way to get them.
 
 It is OFF by default: holding a stream open 24/7 is less app-like than periodic
 polling, and the richest data arrives only while the car is awake. Each raw
@@ -91,6 +92,9 @@ class AdrenoxLiveChannel:
         token = self._api.tokens.access_token if self._api.tokens else None
         if not token:
             raise RuntimeError("no access token for live channel")
+        # Arm the backend first: the stream stays idle until initLiveTracking
+        # returns 200 (the app does the same before opening the stream).
+        await self._api.init_live_tracking(self._vin)
         headers = {
             ep.HDR_AUTHORIZATION: token,
             "Accept": "text/event-stream",

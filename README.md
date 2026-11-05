@@ -20,25 +20,31 @@ been confirmed against live traffic**, so when you first run it, turn on debug
 logging and expect to adjust a field name or two
 ([docs/capture-guide.md](docs/capture-guide.md) explains how).
 
-**Working now (from the passive `vehicleStatus` poll):**
+**Working now (from the `fetchStateVin` snapshot poll):**
 
 | Entity | Notes |
 |---|---|
 | Odometer | `odoMeter` |
 | Fuel range | distance-to-empty (`dte`); ICE vehicles report range, not litres |
-| Last reported | when the car last sent data |
+| Ignition | `ign` (on/off) |
+| Location | `latitude`/`longitude`/`heading` → a `device_tracker` |
+| Last reported | when the car last sent data (`time`) |
 
-**Next feature — ignition, lamps, doors, roof** (`ign`, `lampStatus`,
-`doorLock`/`stsDoor`, `sunRoof`): these are **not** in the cheap status poll.
-The app receives them over a live Server-Sent-Events channel
-(`{service host}/location-services/webapi/sse/register/{vin}`). The field
-mappings are already in [`parser.py`](custom_components/mahindra_adrenox/parser.py)
-and the host is in [`endpoints.py`](custom_components/mahindra_adrenox/endpoints.py);
-wiring that stream into the coordinator is the planned next step (see Roadmap).
+The poll hits `location-services/fetchStateVin/{vin}` — the same endpoint the
+app's home screen reads, on the same host and token as login (no vehicle
+switch). An earlier version used `vehicleservice/vehicleStatus`, which returns
+`UNAUTHORIZED` and is not the dashboard's source.
 
-The parser also already maps fuel level, tyre pressures, battery voltage,
-per-door/window states, climate and GPS for when a capture confirms they are
-available — entities appear only for values your car actually returns.
+**Lamps, doors and roof** (`lampStatus`, `doorLock`/`stsDoor`, `sunRoof`) are
+**not** in that snapshot. The app receives them over a live
+Server-Sent-Events channel: it POSTs `location-services/initLiveTracking`
+(`{"vin": …}`) to arm the backend, then reads
+`location-services/webapi/sse/register/{vin}`. Turn on **Enable live channel**
+in options to open that stream (see below).
+
+The parser also maps fuel level, tyre pressures, battery voltage, per-door/
+window states and climate for when a capture confirms them — entities appear
+only for values your car actually returns.
 
 ## How it talks to AdrenoX (and avoids account lockout)
 
@@ -117,10 +123,12 @@ awake; raw events are logged at debug so mappings can be confirmed.
 
 ## Roadmap
 
-- [x] Confirm `vehicleStatus` auth: the session must switch to the vehicle
-      (`auth/switch/vehicle/{encryptedVehicleId}`) for a vehicle-scoped token.
-- [x] Wire the live SSE channel for ignition, lamps, doors and sunroof (opt-in).
-- [ ] Add a `device_tracker` from the live GPS feed (`gnssInfo`).
+- [x] Poll the right endpoint: `location-services/fetchStateVin/{vin}` (not
+      `vehicleStatus`) for odometer, fuel range, ignition and GPS.
+- [x] `device_tracker` from the snapshot's `latitude`/`longitude`.
+- [x] Wire the live SSE channel for lamps, doors and sunroof (opt-in), armed
+      with `initLiveTracking` first.
+- [ ] Confirm the live SSE field names against a real debug-logged event.
 - [ ] Confirm and enable remote commands (lock/unlock, climate) from a capture.
 
 ## Development

@@ -46,9 +46,21 @@ VALIDATE_APPID_OTP: Final[Call | None] = ("POST", "auth/validate/otp")
 
 # Data.
 VEHICLES: Final[Call | None] = ("GET", "requestaccess/getMyVehicleInfo")
-# vehicleStatus takes the VIN as a ?vin= query parameter (handled in api.py),
-# returning { code, data: { odoMeter, dte, vSpd, timeStamp }, ... }.
-STATUS: Final[Call | None] = ("GET", "vehicleservice/vehicleStatus")
+# The home-dashboard snapshot. The app reads it from fetchStateVin/{vin} (same
+# RetrofitClient.getMahindraApi() base and headers as login — the raw JWT in
+# Authorization, no vehicle switch). It returns
+#   {"dataModel": {odoMeter, dte, vehRange, cngDte, fuelMode, ign, latitude,
+#                  longitude, heading, vspd, hvBattSOC, chrgSts, connected,
+#                  time, ...}, "statusCode": 200}
+# This replaces vehicleservice/vehicleStatus, which returns UNAUTHORIZED here
+# and is not the dashboard's source. Verified from the app (see
+# docs/reverse-engineering.md); the VIN is substituted into the path.
+STATUS: Final[Call | None] = ("GET", "location-services/fetchStateVin/{vin}")
+
+# Live tracking. The app POSTs this (body {"vin": vin}) to "arm" the backend
+# before opening the SSE stream; it must return statusCode 200. Lamps, doors
+# and the sunroof arrive only over that stream, never in the STATUS snapshot.
+INIT_LIVE_TRACKING: Final[Call | None] = ("POST", "location-services/initLiveTracking")
 
 # Request header names for the login/refresh/mapping calls.
 HDR_USERNAME: Final = "X-Auth-Username"

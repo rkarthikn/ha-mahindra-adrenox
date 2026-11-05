@@ -90,14 +90,16 @@ def test_vehicles_single_object_and_bare_list() -> None:
     assert parse_vehicles({"data": []}) == []
 
 
-def test_status_passive() -> None:
-    """vehicleStatus -> { data: { odoMeter, dte, vSpd, timeStamp } }."""
+def test_status_snapshot() -> None:
+    """fetchStateVin -> { dataModel: { odoMeter, dte, ign, lat/lon, time } }."""
     status = parse_status(load("status.json"))
-    assert status.get("odometer") == 18234.6
+    assert status.get("odometer") == 18234
     assert status.get("range") == 410
-    # No GPS in the passive status endpoint.
-    assert status.position is None
-    # timeStamp without a zone is read as IST.
+    assert status.get("ignition") is False
+    # The snapshot carries GPS, so a position is built.
+    assert status.position is not None
+    assert (status.position.latitude, status.position.longitude) == (12.9716, 77.5946)
+    # "time" without a zone is read as IST.
     assert status.updated_at == datetime(2026, 11, 4, 4, 45, tzinfo=UTC)
 
 

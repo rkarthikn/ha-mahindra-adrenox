@@ -35,5 +35,6 @@ def endpoints(monkeypatch):
     monkeypatch.setattr(ep, "LOGIN", ("GET", "auth/login"))
     monkeypatch.setattr(ep, "TOKEN_REFRESH", ("GET", "auth/refreshToken"))
     monkeypatch.setattr(ep, "VEHICLES", ("GET", "getMyVehicleInfo"))
-    monkeypatch.setattr(ep, "STATUS", ("GET", "vehicleStatus"))
+    monkeypatch.setattr(ep, "STATUS", ("GET", "location-services/fetchStateVin/{vin}"))
+    monkeypatch.setattr(ep, "INIT_LIVE_TRACKING", ("POST", "location-services/initLiveTracking"))
     return BASE

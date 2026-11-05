@@ -221,38 +221,27 @@ class AdrenoxApi:
         resp = await self._authorized(ep.VEHICLES)
         return parse_vehicles(resp.body)
 
-    async def switch_vehicle(self, encrypted_id: str) -> None:
-        """Scope the session to one vehicle; a new JWT comes back in headers.
-
-        vehicleStatus (and other per-vehicle calls) return UNAUTHORIZED with the
-        account token until the session has been switched to that vehicle.
-        """
-        if ep.API_BASE is None:
-            raise AdrenoxNotConfigured("AdrenoX endpoints are not configured yet")
-        url = f"{ep.API_BASE}/auth/switch/vehicle/{encrypted_id}"
-        async with self._lock:
-            await self._ensure_token()
-            resp = await self._send("GET", url, None, token=self._token())
-            if resp.status in (401, 403) and self._can_refresh():
-                await self._refresh()
-                resp = await self._send("GET", url, None, token=self._token())
-            self._raise_for_status(resp)
-            jwt = resp.headers.get(ep.RESP_HDR_JWT) if resp.headers else None
-            if jwt:
-                tokens = parse_tokens_from_headers(
-                    resp.headers,
-                    ep.RESP_HDR_JWT,
-                    ep.RESP_HDR_REFRESH,
-                    previous_refresh=self.tokens.refresh_token if self.tokens else None,
-                )
-                await self._store(tokens)
-
     async def status(self, vin: str) -> VehicleStatus:
-        resp = await self._authorized(ep.STATUS, params={"vin": vin})
+        """Read the dashboard snapshot (odometer, fuel range, ignition, GPS…).
+
+        The VIN goes in the path (fetchStateVin/{vin}); the account JWT alone
+        authorizes it, so no vehicle switch is needed.
+        """
+        resp = await self._authorized(ep.STATUS, vin=vin)
         try:
             return parse_status(resp.body)
         except ParseError as err:
             raise AdrenoxError(str(err)) from err
+
+    async def init_live_tracking(self, vin: str) -> None:
+        """Arm the backend to stream live data before the SSE channel opens.
+
+        Lamps, doors and the sunroof are pushed only over the live stream, and
+        the stream stays idle until this POST (body {"vin": vin}) returns 200.
+        """
+        if ep.INIT_LIVE_TRACKING is None:
+            raise AdrenoxNotConfigured("Live tracking endpoint is not configured yet")
+        await self._authorized(ep.INIT_LIVE_TRACKING, json={"vin": vin})
 
     async def command(self, vin: str, command: str) -> None:
         call = ep.COMMANDS.get(command)

@@ -15,8 +15,9 @@ from datetime import UTC, datetime, timedelta, timezone
 import json
 from typing import Any
 
-# Wrappers some APIs put the useful object in.
-_ENVELOPES = ("data", "result", "response", "payload")
+# Wrappers some APIs put the useful object in. fetchStateVin returns the
+# snapshot under "dataModel"; others use "data"/"result"/etc.
+_ENVELOPES = ("dataModel", "data", "result", "response", "payload")
 
 
 @dataclass
@@ -99,9 +100,9 @@ VEHICLE_PATHS: dict[str, tuple[str, ...]] = {
 # Numeric readings.
 NUMBER_PATHS: dict[str, tuple[str, ...]] = {
     "fuel_level": ("fuelLevel", "fuel.level", "fuelPercentage", "fuel_level"),
-    # ICE: "fuel" is reported as distance-to-empty. "dte" is the verified key
-    # from vehicleStatus; vehRange is the live-channel equivalent.
-    "range": ("dte", "distanceToEmpty", "range", "vehRange", "fuel.range", "fuelRange"),
+    # Distance-to-empty / range. fetchStateVin reports ICE as "dte" and CNG as
+    # "cngDte"; "vehRange" is the live-channel equivalent.
+    "range": ("dte", "cngDte", "distanceToEmpty", "range", "vehRange", "fuel.range", "fuelRange"),
     "odometer": ("odoMeter", "odometer", "odo", "odometerReading", "totalDistance"),
     "battery_voltage": ("batteryVoltage", "battery.voltage", "batVoltage", "auxBatteryVoltage"),
     "tyre_pressure_front_left": (
@@ -184,10 +185,11 @@ POSITION_PATHS: dict[str, tuple[str, ...]] = {
         "lon",
     ),
     "heading": ("location.heading", "gps.heading", "heading", "direction"),
-    "speed": ("location.speed", "gps.speed", "speed", "vSpd", "vehicleSpeed"),
+    "speed": ("location.speed", "gps.speed", "speed", "vspd", "vSpd", "vehicleSpeed"),
 }
 
 UPDATED_PATHS: tuple[str, ...] = (
+    "time",
     "timeStamp",
     "lastUpdated",
     "lastUpdatedTime",
@@ -469,6 +471,7 @@ LIVE_FIELD_MAP: dict[str, tuple[str, str]] = {
     "vehRange": ("range", "num"),
     "dte": ("range", "num"),
     "vSpd": ("speed", "num"),
+    "vspd": ("speed", "num"),
     "speed": ("speed", "num"),
     "stsDoor": ("door_open", "bool"),
     "stsDoorLatch": ("door_open", "bool"),
